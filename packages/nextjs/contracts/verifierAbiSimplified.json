@@ -1,0 +1,18 @@
+[
+  {
+    "type": "function",
+    "name": "verify_ultra_keccak_honk_proof",
+    "inputs": [
+      {
+        "name": "full_proof_with_hints",
+        "type": "felt*"
+      }
+    ],
+    "outputs": [
+      {
+        "type": "felt*"
+      }
+    ],
+    "state_mutability": "view"
+  }
+]

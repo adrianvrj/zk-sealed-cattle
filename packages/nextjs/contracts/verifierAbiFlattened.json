@@ -1,0 +1,18 @@
+[
+  {
+    "type": "function",
+    "name": "verify_ultra_keccak_honk_proof",
+    "inputs": [
+      {
+        "name": "full_proof_with_hints",
+        "type": "core::array::Span::<core::felt252>"
+      }
+    ],
+    "outputs": [
+      {
+        "type": "core::option::Option::<core::array::Span::<core::integer::u256>>"
+      }
+    ],
+    "state_mutability": "view"
+  }
+]

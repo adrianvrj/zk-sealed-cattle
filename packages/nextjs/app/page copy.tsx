@@ -1,12 +1,12 @@
 "use client";
 
-import { useAccount, useContract } from "@starknet-react/core";
-import { useState, useMemo, useEffect } from "react";
+import { useAccount, useContract, useSendTransaction } from "@starknet-react/core";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { poseidonHashMany } from "micro-starknet";
 import toast from "react-hot-toast";
 import deployedContracts from "~~/contracts/deployedContracts";
 
-const contractData = deployedContracts.sepolia?.SealedBidFeedlot;
+const contractData = deployedContracts.devnet?.SealedBidFeedlot;
 
 const RAZAS = ["Angus", "Hereford", "Braford", "Brangus", "Limousin", "Charolais", "Otra"];
 
@@ -38,18 +38,12 @@ function normalizeAddress(addr: string): string {
   return '0x' + (hex || '0');
 }
 
-// Dirección del verificador desplegado
-const VERIFIER_ADDRESS = '0x07b31788d2d06f1b80696f38ba7224f3595cc482dbd2f816165dbc7cdf476c14';
-
 export default function Home() {
   const { account } = useAccount();
   const { contract } = useContract({
     abi: contractData?.abi,
     address: contractData?.address,
   });
-
-  console.log("Contract address:", contractData?.address);
-  console.log("Contract loaded:", contract);
 
   const [owner, setOwner] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
@@ -78,82 +72,33 @@ export default function Home() {
   const [commitment, setCommitment] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
-  // Estados de persistencia por cuenta
+  // Estados de persistencia por cuenta (simples objetos)
   const [paidLotes, setPaidLotes] = useState<Record<string, boolean>>({});
   const [participatedLotes, setParticipatedLotes] = useState<Record<string, boolean>>({});
-  const [proofGeneratedLotes, setProofGeneratedLotes] = useState<Record<string, boolean>>({});
 
-  // Estado para el calldata como array de strings (para evitar problemas de serialización)
-  const [calldata, setCalldata] = useState<string[]>([]);
-
-  // Cargar el calldata desde el archivo público
+  // Cargar datos de la cuenta cuando está disponible
   useEffect(() => {
-    const loadCalldata = async () => {
-      try {
-        const response = await fetch('/calldata_real.txt');
-        const text = await response.text();
-        // Dividir por espacios y mantener como strings para evitar pérdida de precisión
-        const numbers = text.trim().split(/\s+/);
-        setCalldata(numbers);
-        console.log('✅ Calldata cargado correctamente. Longitud:', numbers.length);
-        console.log('📦 Primeros 5 elementos:', numbers.slice(0, 5));
-      } catch (error) {
-        console.error('❌ Error al cargar calldata:', error);
-        toast.error("Error al cargar calldata");
-      }
-    };
-    loadCalldata();
-  }, []);
-
-  // Función para calcular commitment con Poseidon (mismo que el circuito)
-  const computeCommitment = (secret: bigint, amount: bigint, lot_id: bigint, winner: string) => {
-    try {
-      const winnerBigInt = BigInt(winner);
-      const { low: amountLow } = splitU256(amount);
-      const { low: lotIdLow } = splitU256(lot_id);
-      // El orden debe coincidir con el contrato: [secret, amountLow, lotIdLow, winner]
-      const hash = poseidonHashMany([secret, amountLow, lotIdLow, winnerBigInt]);
-      return hash.toString();
-    } catch (error) {
-      console.error('Error computing commitment:', error);
-      throw error;
-    }
-  };
-
-  // Calcula el commitment actual (usando micro-starknet para la UI)
-  const calculatedCommitment = useMemo(() => {
-    if (!amount || !nonce || committed) return "";
-    try {
-      const amountBig = BigInt(amount);
-      const nonceBig = BigInt(nonce);
-      const { low, high } = splitU256(amountBig);
-      return poseidonHashMany([low, high, nonceBig]).toString();
-    } catch (e) {
-      return "";
-    }
-  }, [amount, nonce, committed]);
-
-  // Cargar datos de la cuenta cuando cambia
-  useEffect(() => {
-    if (!account) {
-      setPaidLotes({});
-      setParticipatedLotes({});
-      setProofGeneratedLotes({});
-      return;
-    }
+    if (!account) return;
     const accountKey = account.address.toLowerCase();
-
     const savedPaid = localStorage.getItem(`paidLotes_${accountKey}`);
-    setPaidLotes(savedPaid ? JSON.parse(savedPaid) : {});
-
+    if (savedPaid) {
+      try {
+        setPaidLotes(JSON.parse(savedPaid));
+      } catch (e) {
+        console.error('Error parsing paidLotes', e);
+      }
+    }
     const savedParticipated = localStorage.getItem(`participatedLotes_${accountKey}`);
-    setParticipatedLotes(savedParticipated ? JSON.parse(savedParticipated) : {});
-
-    const savedProofGenerated = localStorage.getItem(`proofGeneratedLotes_${accountKey}`);
-    setProofGeneratedLotes(savedProofGenerated ? JSON.parse(savedProofGenerated) : {});
+    if (savedParticipated) {
+      try {
+        setParticipatedLotes(JSON.parse(savedParticipated));
+      } catch (e) {
+        console.error('Error parsing participatedLotes', e);
+      }
+    }
   }, [account]);
 
-  // Guardar cambios en localStorage
+  // Guardar cambios
   useEffect(() => {
     if (!account) return;
     const accountKey = account.address.toLowerCase();
@@ -166,12 +111,6 @@ export default function Home() {
     localStorage.setItem(`participatedLotes_${accountKey}`, JSON.stringify(participatedLotes));
   }, [participatedLotes, account]);
 
-  useEffect(() => {
-    if (!account) return;
-    const accountKey = account.address.toLowerCase();
-    localStorage.setItem(`proofGeneratedLotes_${accountKey}`, JSON.stringify(proofGeneratedLotes));
-  }, [proofGeneratedLotes, account]);
-
   // Reloj
   useEffect(() => {
     const timer = setInterval(() => {
@@ -180,40 +119,27 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
-  // Owner (hardcodeado con la dirección de Braavos, en minúsculas para consistencia)
+  // Owner
   useEffect(() => {
     if (account) {
-      const ownerAddress = "0x0626bb9241ba6334ae978cfce1280d725e727a6acb5e61392ab4cee031a4b7ca".toLowerCase();
+      const ownerAddress = "0x64b48806902a367c8598f4f95c305e8c1a1acba5f082d294a43793113115691";
       setOwner(ownerAddress);
-      const normalizedAccount = normalizeAddress(account.address);
-      const normalizedOwner = normalizeAddress(ownerAddress);
-      setIsOwner(normalizedAccount === normalizedOwner);
-      console.log('Cuenta conectada (raw):', account.address);
-      console.log('Cuenta conectada (normalizada):', normalizedAccount);
-      console.log('Owner (normalizado):', normalizedOwner);
-      console.log('Es owner?', normalizedAccount === normalizedOwner);
-    } else {
-      setIsOwner(false);
+      setIsOwner(account.address === ownerAddress);
     }
   }, [account]);
 
   // Cargar lotes desde el contrato
   const fetchAllLots = async (showRefreshing = false) => {
-    if (!contract) {
-      console.error("Contract no disponible en fetchAllLots");
-      return;
-    }
+    if (!contract) return;
     if (showRefreshing) setRefreshing(true);
     else setLoadingLots(true);
     try {
       const count = await contract.get_lot_count();
-      console.log("Lot count:", count.toString());
       const num = Number(count);
       setNextLotId(String(num + 1));
       const lotsArray = [];
       for (let i = 1; i <= num; i++) {
         try {
-          console.log("Fetching lot", i);
           const info = await contract.get_lot_info(i);
           let metadata = null;
           const metadataUri = info.metadata_uri ? info.metadata_uri.toString() : "";
@@ -249,12 +175,11 @@ export default function Home() {
             metadata,
           });
         } catch (e) {
-          console.error(`Error fetching lot ${i}:`, e);
+          // Ignorar errores por lote
         }
       }
       setLots(lotsArray);
     } catch (e) {
-      console.error("Error en fetchAllLots:", e);
       toast.error("Error al cargar los lotes");
     } finally {
       setLoadingLots(false);
@@ -307,41 +232,62 @@ export default function Home() {
     return { low, high };
   };
 
-  // Funciones de llamadas al contrato usando contract.populate para evitar problemas de serialización
+  const calculatedCommitment = useMemo(() => {
+    if (!amount || !nonce || committed) return "";
+    try {
+      const amountBig = BigInt(amount);
+      const nonceBig = BigInt(nonce);
+      const { low, high } = splitU256(amountBig);
+      return poseidonHashMany([low, high, nonceBig]).toString();
+    } catch (e) {
+      return "";
+    }
+  }, [amount, nonce, committed]);
+
+  const createLotCalls = useMemo(() => {
+    if (!contract || !account || !nextLotId || !newProductor || !newRaza || !newPeso || !newCantidad || !newMetadata || !newDuration) return [];
+    return [contract.populate("create_lot", [
+      BigInt(nextLotId),
+      newProductor,
+      newRaza,
+      BigInt(newPeso),
+      BigInt(newCantidad),
+      newMetadata,
+      BigInt(newDuration)
+    ])];
+  }, [contract, account, nextLotId, newProductor, newRaza, newPeso, newCantidad, newMetadata, newDuration]);
+
+  const commitCalls = useMemo(() => {
+    if (!contract || !account || !amount || !calculatedCommitment || committed || !selectedLotId) return [];
+    return [contract.populate("commit_bid", [selectedLotId, calculatedCommitment])];
+  }, [contract, account, amount, calculatedCommitment, selectedLotId, committed]);
+
+  const revealCalls = useMemo(() => {
+    if (!contract || !account || !amount || !nonce || !committed || revealed || !selectedLotId) return [];
+    return [contract.populate("reveal_bid", [selectedLotId, BigInt(amount), nonce])];
+  }, [contract, account, amount, nonce, committed, revealed, selectedLotId]);
+
+  const finalizeCalls = useMemo(() => {
+    if (!contract || !account || !selectedLotId) return [];
+    return [contract.populate("finalize_lot", [selectedLotId])];
+  }, [contract, account, selectedLotId]);
+
+  const { sendAsync: sendCreateLot } = useSendTransaction({ calls: createLotCalls });
+  const { sendAsync: sendCommit } = useSendTransaction({ calls: commitCalls });
+  const { sendAsync: sendReveal } = useSendTransaction({ calls: revealCalls });
+  const { sendAsync: sendFinalize } = useSendTransaction({ calls: finalizeCalls });
+
   const handleCreateLot = async () => {
     setErrorMessage("");
-    if (!contract || !account) {
-      console.error("Contract o account no disponibles");
-      return;
-    }
+    if (!sendCreateLot) return;
     if (!isOwner) {
       setErrorMessage("❌ Solo el owner puede crear lotes");
       return;
     }
     setIsLoading(true);
     try {
-      console.log("Creando lote con datos:", {
-        nextLotId,
-        newProductor,
-        newRaza,
-        newPeso,
-        newCantidad,
-        newMetadata,
-        newDuration,
-      });
-      const call = contract.populate('create_lot', [
-        BigInt(nextLotId),
-        newProductor,
-        newRaza,
-        BigInt(newPeso),
-        BigInt(newCantidad),
-        newMetadata,
-        BigInt(newDuration),
-      ]);
-      console.log("Call generada:", call);
-      const tx = await account.execute([call]);
-      console.log("Transacción enviada:", tx);
-      await account.waitForTransaction(tx.transaction_hash);
+      const tx = await sendCreateLot();
+      await account?.waitForTransaction(tx.transaction_hash);
       toast.success("✅ Lote creado exitosamente");
       setNewProductor("");
       setNewRaza("");
@@ -351,8 +297,7 @@ export default function Home() {
       setNewDuration("3600");
       await fetchAllLots();
     } catch (e: any) {
-      console.error("Error detallado en createLot:", e);
-      toast.error("❌ Error al crear lote: " + (e.message || JSON.stringify(e)));
+      toast.error("❌ Error al crear lote");
     } finally {
       setIsLoading(false);
     }
@@ -360,41 +305,20 @@ export default function Home() {
 
   const handleCommit = async () => {
     setErrorMessage("");
-    if (!contract || !account || !selectedLotId) return;
+    if (!sendCommit) return;
     if (!isAuctionActive(selectedLotInfo)) {
       toast.error("❌ La subasta no está activa");
       return;
     }
     setIsLoading(true);
     try {
-      const secretBig = BigInt(nonce);
-      const amountBig = BigInt(amount);
-      const lotIdBig = BigInt(selectedLotId);
-      const winnerAddr = account.address;
-
-      // Calcular commitment con Poseidon (mismo que el circuito)
-      const poseidonCommitment = computeCommitment(secretBig, amountBig, lotIdBig, winnerAddr);
-
-      // Guardar datos para la futura prueba ZK
-      const key = `zk_${selectedLotId}_${account.address.toLowerCase()}`;
-      localStorage.setItem(key, JSON.stringify({
-        secret: nonce,
-        amount: amount,
-        lot_id: selectedLotId,
-        winner: winnerAddr,
-        commitment: poseidonCommitment,
-      }));
-
-      // Enviar transacción
-      const call = contract.populate('commit_bid', [selectedLotId, poseidonCommitment]);
-      const tx = await account.execute([call]);
-      await account.waitForTransaction(tx.transaction_hash);
-      setCommitment(poseidonCommitment);
+      const tx = await sendCommit();
+      await account?.waitForTransaction(tx.transaction_hash);
+      setCommitment(calculatedCommitment);
       setCommitted(true);
       toast.success("✅ Commit exitoso. Ahora revela.");
     } catch (e: any) {
-      console.error("Error en commit:", e);
-      toast.error("❌ Error en commit: " + (e.message || JSON.stringify(e)));
+      toast.error("❌ Error en commit");
     } finally {
       setIsLoading(false);
     }
@@ -402,18 +326,17 @@ export default function Home() {
 
   const handleReveal = async () => {
     setErrorMessage("");
-    if (!contract || !account || !selectedLotId) return;
+    if (!sendReveal) return;
     if (!isAuctionActive(selectedLotInfo)) {
       toast.error("❌ La subasta no está activa");
       return;
     }
     setIsLoading(true);
     try {
-      const call = contract.populate('reveal_bid', [selectedLotId, BigInt(amount), nonce]);
-      const tx = await account.execute([call]);
-      await account.waitForTransaction(tx.transaction_hash);
+      const tx = await sendReveal();
+      await account?.waitForTransaction(tx.transaction_hash);
 
-      const updatedInfo = await contract.get_lot_info(selectedLotId);
+      const updatedInfo = await contract?.get_lot_info(selectedLotId);
       const updatedLot = {
         ...selectedLotInfo,
         ...updatedInfo,
@@ -431,13 +354,13 @@ export default function Home() {
       setSelectedLotInfo(updatedLot);
       setLots(lots.map(l => l.id.toString() === selectedLotId ? updatedLot : l));
 
+      // Marcar participación
       setParticipatedLotes(prev => ({ ...prev, [selectedLotId]: true }));
 
       setRevealed(true);
       toast.success("✅ Puja revelada");
     } catch (e: any) {
-      console.error("Error en reveal:", e);
-      toast.error("❌ Error en reveal: " + (e.message || JSON.stringify(e)));
+      toast.error("❌ Error en reveal");
     } finally {
       setIsLoading(false);
     }
@@ -452,18 +375,17 @@ export default function Home() {
   const handleFinalize = async () => {
     if (!window.confirm("¿Estás seguro de que quieres finalizar este lote?")) return;
     setErrorMessage("");
-    if (!contract || !account || !selectedLotId) return;
+    if (!sendFinalize) return;
     if (!isOwner) {
       toast.error("❌ Solo el owner puede finalizar");
       return;
     }
     setIsLoading(true);
     try {
-      const call = contract.populate('finalize_lot', [selectedLotId]);
-      const tx = await account.execute([call]);
-      await account.waitForTransaction(tx.transaction_hash);
+      const tx = await sendFinalize();
+      await account?.waitForTransaction(tx.transaction_hash);
 
-      const updatedInfo = await contract.get_lot_info(selectedLotId);
+      const updatedInfo = await contract?.get_lot_info(selectedLotId);
       const updatedLot = {
         ...selectedLotInfo,
         ...updatedInfo,
@@ -483,54 +405,12 @@ export default function Home() {
 
       toast.success("✅ Lote finalizado");
     } catch (e: any) {
-      console.error("Error en finalize:", e);
-      toast.error("❌ Error al finalizar: " + (e.message || JSON.stringify(e)));
+      toast.error("❌ Error al finalizar");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Manejador para generar la prueba ZK usando el verificador desplegado
-  const handleZKProof = async () => {
-    if (!account || !selectedLotInfo || !selectedLotInfo.finalizado) return;
-    if (normalizeAddress(selectedLotInfo.mejor_postor) !== normalizeAddress(account.address)) {
-      toast.error("Solo el ganador puede generar la prueba ZK");
-      return;
-    }
-
-    // Verificar calldata
-    if (calldata.length === 0) {
-      toast.error("Calldata no disponible");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      console.log('📦 Enviando calldata length:', calldata.length);
-      
-      // Enviar la transacción directamente con account.execute
-      // Convertir cada elemento a string (ya lo están, pero por seguridad)
-      const calldataAsStrings = calldata.map(item => item.toString());
-      
-      const tx = await account.execute({
-        contractAddress: VERIFIER_ADDRESS,
-        entrypoint: 'verify_ultra_keccak_honk_proof',
-        calldata: calldataAsStrings
-      });
-      
-      await account.waitForTransaction(tx.transaction_hash);
-      
-      toast.success("✅ Prueba verificada on-chain");
-      setProofGeneratedLotes(prev => ({ ...prev, [selectedLotId]: true }));
-      localStorage.setItem(`proof_tx_${selectedLotId}`, tx.transaction_hash);
-    } catch (error: any) {
-      console.error('❌ Error en verificación:', error);
-      toast.error("Error al verificar: " + error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
   if (!account) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -541,7 +421,7 @@ export default function Home() {
 
   const userHasParticipated = participatedLotes[selectedLotId];
   const hasPaid = paidLotes[selectedLotId];
-  const hasGeneratedProof = proofGeneratedLotes[selectedLotId];
+  const accountKey = account.address.toLowerCase(); // para tooltips
 
   return (
     <div className="container mx-auto p-4 md:p-8 max-w-7xl">
@@ -631,7 +511,11 @@ export default function Home() {
             onClick={() => fetchAllLots(true)}
             disabled={loadingLots || refreshing}
           >
-            {refreshing ? <span className="loading loading-spinner loading-xs"></span> : "↻ Refrescar"}
+            {refreshing ? (
+              <span className="loading loading-spinner loading-xs"></span>
+            ) : (
+              "↻ Refrescar"
+            )}
           </button>
         </div>
         {loadingLots ? (
@@ -662,7 +546,6 @@ export default function Home() {
                   const razaNombre = getRazaNombre(lot.raza);
                   const esGanador = lot.finalizado && normalizeAddress(lot.mejor_postor) === normalizeAddress(account.address);
                   const pagado = esGanador && paidLotes[lot.id.toString()];
-                  const proofGenerated = esGanador && proofGeneratedLotes[lot.id.toString()];
 
                   return (
                     <tr
@@ -686,8 +569,6 @@ export default function Home() {
                       <td>
                         {pagado ? (
                           <span className="badge badge-success badge-sm md:badge-md">Pagado</span>
-                        ) : proofGenerated ? (
-                          <span className="badge badge-success badge-sm md:badge-md">Prueba ZK</span>
                         ) : esGanador ? (
                           <span className="badge badge-warning badge-sm md:badge-md">Pendiente</span>
                         ) : lot.finalizado ? (
@@ -710,7 +591,10 @@ export default function Home() {
                             Ofertar
                           </button>
                         ) : (
-                          <button className="btn btn-xs md:btn-sm btn-ghost" disabled>
+                          <button
+                            className="btn btn-xs md:btn-sm btn-ghost"
+                            disabled
+                          >
                             {lot.finalizado ? "Finalizado" : (participatedLotes[lot.id.toString()] ? "Ya participaste" : "Terminado")}
                           </button>
                         )}
@@ -755,7 +639,7 @@ export default function Home() {
             <button
               className="btn btn-warning w-full mb-4"
               onClick={handleFinalize}
-              disabled={isLoading}
+              disabled={isLoading || !sendFinalize}
             >
               {isLoading ? "Finalizando..." : "Finalizar Lote Manualmente (solo owner)"}
             </button>
@@ -798,20 +682,20 @@ export default function Home() {
 
               {calculatedCommitment && !committed && (
                 <div className="alert alert-info text-xs break-all">
-                  <strong>Commitment a enviar (micro-starknet):</strong> {calculatedCommitment}
+                  <strong>Commitment a enviar:</strong> {calculatedCommitment}
                 </div>
               )}
 
               {commitment && committed && (
                 <div className="alert alert-success text-xs break-all">
-                  <strong>Commitment enviado (Poseidon):</strong> {commitment}
+                  <strong>Commitment enviado:</strong> {commitment}
                 </div>
               )}
 
               <button
                 className="btn btn-primary w-full"
                 onClick={handleCommit}
-                disabled={isLoading || !amount || committed}
+                disabled={isLoading || !amount || !sendCommit || committed}
               >
                 {isLoading ? "Enviando..." : "1. Enviar Commit"}
               </button>
@@ -828,7 +712,7 @@ export default function Home() {
               <button
                 className="btn btn-secondary w-full"
                 onClick={handleReveal}
-                disabled={isLoading || !amount || !committed || revealed}
+                disabled={isLoading || !amount || !sendReveal || !committed || revealed}
               >
                 {isLoading ? "Enviando..." : "2. Revelar Puja"}
               </button>
@@ -839,7 +723,6 @@ export default function Home() {
             </div>
           ) : null}
 
-          {/* Botón de pago simulado (solo para el ganador y si no ha pagado) */}
           {selectedLotInfo.finalizado &&
             normalizeAddress(selectedLotInfo.mejor_postor) === normalizeAddress(account.address) &&
             !hasPaid && (
@@ -852,37 +735,11 @@ export default function Home() {
               </button>
             )}
 
-          {/* Mensaje de pago exitoso (solo para el ganador) */}
-          {selectedLotInfo.finalizado &&
-            normalizeAddress(selectedLotInfo.mejor_postor) === normalizeAddress(account.address) &&
-            hasPaid && (
-              <div className="alert alert-success mt-4">
-                ✅ Has realizado el pago de este lote correctamente. Gracias por tu participación.
-              </div>
-            )}
-
-          {/* Botón para generar prueba ZK (solo para el ganador, si no la ha generado) */}
-          {selectedLotInfo.finalizado &&
-            normalizeAddress(selectedLotInfo.mejor_postor) === normalizeAddress(account.address) &&
-            !hasGeneratedProof && (
-              <button
-                className="btn btn-primary w-full mt-4"
-                onClick={handleZKProof}
-                disabled={isLoading}
-              >
-                {isLoading ? "Generando..." : "🔐 Verificar Pago con ZK"}
-
-              </button>
-            )}
-
-          {/* Mensaje de prueba generada (solo para el ganador) */}
-          {selectedLotInfo.finalizado &&
-            normalizeAddress(selectedLotInfo.mejor_postor) === normalizeAddress(account.address) &&
-            hasGeneratedProof && (
-              <div className="alert alert-success mt-4">
-                ✅ Pago verificado on-chain. Transacción: {localStorage.getItem(`proof_tx_${selectedLotId}`)?.slice(0, 10)}...
-              </div>
-            )}
+          {selectedLotInfo.finalizado && hasPaid && (
+            <div className="alert alert-success mt-4">
+              ✅ Has realizado el pago de este lote correctamente. Gracias por tu participación.
+            </div>
+          )}
         </div>
       )}
     </div>

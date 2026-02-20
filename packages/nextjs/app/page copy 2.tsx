@@ -38,8 +38,8 @@ function normalizeAddress(addr: string): string {
   return '0x' + (hex || '0');
 }
 
-// Dirección del verificador desplegado
-const VERIFIER_ADDRESS = '0x07b31788d2d06f1b80696f38ba7224f3595cc482dbd2f816165dbc7cdf476c14';
+// URL de la API de generación de pruebas (la de Codespaces) – ACTUALÍZALA SI CAMBIA
+const PROOF_API_URL = 'https://glorious-acorn-4j9gqpx4jwqphq9p-3001.app.github.dev/api/generate-proof';
 
 export default function Home() {
   const { account } = useAccount();
@@ -82,28 +82,6 @@ export default function Home() {
   const [paidLotes, setPaidLotes] = useState<Record<string, boolean>>({});
   const [participatedLotes, setParticipatedLotes] = useState<Record<string, boolean>>({});
   const [proofGeneratedLotes, setProofGeneratedLotes] = useState<Record<string, boolean>>({});
-
-  // Estado para el calldata como array de strings (para evitar problemas de serialización)
-  const [calldata, setCalldata] = useState<string[]>([]);
-
-  // Cargar el calldata desde el archivo público
-  useEffect(() => {
-    const loadCalldata = async () => {
-      try {
-        const response = await fetch('/calldata_real.txt');
-        const text = await response.text();
-        // Dividir por espacios y mantener como strings para evitar pérdida de precisión
-        const numbers = text.trim().split(/\s+/);
-        setCalldata(numbers);
-        console.log('✅ Calldata cargado correctamente. Longitud:', numbers.length);
-        console.log('📦 Primeros 5 elementos:', numbers.slice(0, 5));
-      } catch (error) {
-        console.error('❌ Error al cargar calldata:', error);
-        toast.error("Error al cargar calldata");
-      }
-    };
-    loadCalldata();
-  }, []);
 
   // Función para calcular commitment con Poseidon (mismo que el circuito)
   const computeCommitment = (secret: bigint, amount: bigint, lot_id: bigint, winner: string) => {
@@ -490,7 +468,7 @@ export default function Home() {
     }
   };
 
-  // Manejador para generar la prueba ZK usando el verificador desplegado
+  // Manejador para generar la prueba ZK llamando a la API (MEJORADO)
   const handleZKProof = async () => {
     if (!account || !selectedLotInfo || !selectedLotInfo.finalizado) return;
     if (normalizeAddress(selectedLotInfo.mejor_postor) !== normalizeAddress(account.address)) {
@@ -498,39 +476,53 @@ export default function Home() {
       return;
     }
 
-    // Verificar calldata
-    if (calldata.length === 0) {
-      toast.error("Calldata no disponible");
+    const key = `zk_${selectedLotId}_${account.address.toLowerCase()}`;
+    const stored = localStorage.getItem(key);
+    if (!stored) {
+      toast.error("No se encontraron datos para generar la prueba. ¿Hiciste commit?");
       return;
     }
 
+    const data = JSON.parse(stored);
+    console.log("Enviando a API:", { data, url: PROOF_API_URL });
+
     setIsLoading(true);
     try {
-      console.log('📦 Enviando calldata length:', calldata.length);
-      
-      // Enviar la transacción directamente con account.execute
-      // Convertir cada elemento a string (ya lo están, pero por seguridad)
-      const calldataAsStrings = calldata.map(item => item.toString());
-      
-      const tx = await account.execute({
-        contractAddress: VERIFIER_ADDRESS,
-        entrypoint: 'verify_ultra_keccak_honk_proof',
-        calldata: calldataAsStrings
+      const response = await fetch(PROOF_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: data.amount,
+          secret: data.secret,
+          lot_id: data.lot_id,
+          winner: data.winner,
+          commitment: data.commitment,
+        }),
       });
-      
-      await account.waitForTransaction(tx.transaction_hash);
-      
-      toast.success("✅ Prueba verificada on-chain");
-      setProofGeneratedLotes(prev => ({ ...prev, [selectedLotId]: true }));
-      localStorage.setItem(`proof_tx_${selectedLotId}`, tx.transaction_hash);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log("Respuesta de la API:", result);
+
+      if (result.success) {
+        console.log('Prueba generada:', result.calldata);
+        toast.success("✅ Prueba ZK generada correctamente");
+        setProofGeneratedLotes(prev => ({ ...prev, [selectedLotId]: true }));
+        localStorage.setItem(`proof_${selectedLotId}`, result.calldata);
+      } else {
+        toast.error("Error al generar la prueba: " + (result.error || "Error desconocido"));
+      }
     } catch (error: any) {
-      console.error('❌ Error en verificación:', error);
-      toast.error("Error al verificar: " + error.message);
+      console.error("Error en fetch:", error);
+      toast.error("Error de conexión con la API: " + error.message);
     } finally {
       setIsLoading(false);
     }
   };
-  
+
   if (!account) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -870,8 +862,7 @@ export default function Home() {
                 onClick={handleZKProof}
                 disabled={isLoading}
               >
-                {isLoading ? "Generando..." : "🔐 Verificar Pago con ZK"}
-
+                {isLoading ? "Generando..." : "🔐 Generar Prueba ZK (demo)"}
               </button>
             )}
 
@@ -880,7 +871,7 @@ export default function Home() {
             normalizeAddress(selectedLotInfo.mejor_postor) === normalizeAddress(account.address) &&
             hasGeneratedProof && (
               <div className="alert alert-success mt-4">
-                ✅ Pago verificado on-chain. Transacción: {localStorage.getItem(`proof_tx_${selectedLotId}`)?.slice(0, 10)}...
+                ✅ Prueba ZK generada correctamente. Puedes ver el hash en la consola.
               </div>
             )}
         </div>

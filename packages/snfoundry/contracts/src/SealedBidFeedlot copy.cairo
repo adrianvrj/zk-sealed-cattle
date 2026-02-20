@@ -83,7 +83,7 @@ mod SealedBidFeedlot {
                 duration,
                 finalizado: false,
                 mejor_puja: 0_u256,
-                mejor_postor: Zero::zero(),
+                mejor_postor: Zero::zero(), // ✅ Dirección cero usando Zero trait
             };
             self.lots.write(lot_id, lot);
             
@@ -108,11 +108,7 @@ mod SealedBidFeedlot {
             assert(get_block_timestamp() < lot.start_time + lot.duration, 'Auction ended');
 
             let caller = get_caller_address();
-            // Calcular commitment con poseidon_hash_span en el orden [nonce, amount, lot_id, caller]
-            // Usamos amount.low y lot_id.low (asumiendo que caben en 128 bits)
-            let computed_commitment = poseidon_hash_span(
-                array![nonce, amount.low.into(), lot_id.low.into(), caller.into()].span()
-            );
+            let computed_commitment = poseidon_hash_span(array![amount.low.into(), amount.high.into(), nonce.into()].span());
             let stored_commitment = self.commitments.read((caller, lot_id));
             assert(computed_commitment == stored_commitment, 'Commitment mismatch');
 
