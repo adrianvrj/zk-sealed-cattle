@@ -46,6 +46,7 @@
     "prettier": "^3.2.5"
   },
   "dependencies": {
+    "@aztec/bb.js": "0.87.0",
     "@scure/starknet": "^2.0.0",
     "micro-starknet": "^0.2.3",
     "postcss": "^8.4.38"

@@ -107,6 +107,16 @@ const deployedContracts = {
           ],
         },
         {
+          type: "struct",
+          name: "core::array::Span::<core::felt252>",
+          members: [
+            {
+              name: "snapshot",
+              type: "@core::array::Array::<core::felt252>",
+            },
+          ],
+        },
+        {
           type: "interface",
           name: "contracts::SealedBidFeedlot::ISealedBidFeedlot",
           items: [
@@ -237,6 +247,78 @@ const deployedContracts = {
               ],
               state_mutability: "view",
             },
+            {
+              type: "function",
+              name: "set_auction_verifier",
+              inputs: [
+                {
+                  name: "verifier_address",
+                  type: "core::starknet::contract_address::ContractAddress",
+                },
+              ],
+              outputs: [],
+              state_mutability: "external",
+            },
+            {
+              type: "function",
+              name: "finalize_with_zk",
+              inputs: [
+                {
+                  name: "lot_id",
+                  type: "core::integer::u256",
+                },
+                {
+                  name: "winner",
+                  type: "core::starknet::contract_address::ContractAddress",
+                },
+                {
+                  name: "winner_amount",
+                  type: "core::integer::u256",
+                },
+                {
+                  name: "proof",
+                  type: "core::array::Span::<core::felt252>",
+                },
+              ],
+              outputs: [],
+              state_mutability: "external",
+            },
+            {
+              type: "function",
+              name: "get_bidders_count",
+              inputs: [
+                {
+                  name: "lot_id",
+                  type: "core::integer::u256",
+                },
+              ],
+              outputs: [
+                {
+                  type: "core::integer::u32",
+                },
+              ],
+              state_mutability: "view",
+            },
+            {
+              type: "function",
+              name: "get_bidder_at",
+              inputs: [
+                {
+                  name: "lot_id",
+                  type: "core::integer::u256",
+                },
+                {
+                  name: "index",
+                  type: "core::integer::u32",
+                },
+              ],
+              outputs: [
+                {
+                  type: "core::starknet::contract_address::ContractAddress",
+                },
+              ],
+              state_mutability: "view",
+            },
           ],
         },
         {
@@ -251,9 +333,37 @@ const deployedContracts = {
         },
         {
           type: "event",
+          name: "contracts::SealedBidFeedlot::SealedBidFeedlot::AuctionFinalized",
+          kind: "struct",
+          members: [
+            {
+              name: "lot_id",
+              type: "core::integer::u256",
+              kind: "key",
+            },
+            {
+              name: "winner",
+              type: "core::starknet::contract_address::ContractAddress",
+              kind: "data",
+            },
+            {
+              name: "winner_amount",
+              type: "core::integer::u256",
+              kind: "data",
+            },
+          ],
+        },
+        {
+          type: "event",
           name: "contracts::SealedBidFeedlot::SealedBidFeedlot::Event",
           kind: "enum",
-          variants: [],
+          variants: [
+            {
+              name: "AuctionFinalized",
+              type: "contracts::SealedBidFeedlot::SealedBidFeedlot::AuctionFinalized",
+              kind: "nested",
+            },
+          ],
         },
       ],
       classHash:
@@ -263,7 +373,7 @@ const deployedContracts = {
   sepolia: {
     SealedBidFeedlot: {
       address:
-        "0x6da05a6035305ad6c38a7ab7dcc9344bbc8567865fbe347bca51ab98835bb01",
+        "0x61757931878b323c6656287f004c26f6b8894f8c10c669f048c0785563970d8",
       abi: [
         {
           type: "impl",
@@ -363,6 +473,16 @@ const deployedContracts = {
           ],
         },
         {
+          type: "struct",
+          name: "core::array::Span::<core::felt252>",
+          members: [
+            {
+              name: "snapshot",
+              type: "@core::array::Array::<core::felt252>",
+            },
+          ],
+        },
+        {
           type: "interface",
           name: "contracts::SealedBidFeedlot::ISealedBidFeedlot",
           items: [
@@ -493,6 +613,78 @@ const deployedContracts = {
               ],
               state_mutability: "view",
             },
+            {
+              type: "function",
+              name: "set_auction_verifier",
+              inputs: [
+                {
+                  name: "verifier_address",
+                  type: "core::starknet::contract_address::ContractAddress",
+                },
+              ],
+              outputs: [],
+              state_mutability: "external",
+            },
+            {
+              type: "function",
+              name: "finalize_with_zk",
+              inputs: [
+                {
+                  name: "lot_id",
+                  type: "core::integer::u256",
+                },
+                {
+                  name: "winner",
+                  type: "core::starknet::contract_address::ContractAddress",
+                },
+                {
+                  name: "winner_amount",
+                  type: "core::integer::u256",
+                },
+                {
+                  name: "proof",
+                  type: "core::array::Span::<core::felt252>",
+                },
+              ],
+              outputs: [],
+              state_mutability: "external",
+            },
+            {
+              type: "function",
+              name: "get_bidders_count",
+              inputs: [
+                {
+                  name: "lot_id",
+                  type: "core::integer::u256",
+                },
+              ],
+              outputs: [
+                {
+                  type: "core::integer::u32",
+                },
+              ],
+              state_mutability: "view",
+            },
+            {
+              type: "function",
+              name: "get_bidder_at",
+              inputs: [
+                {
+                  name: "lot_id",
+                  type: "core::integer::u256",
+                },
+                {
+                  name: "index",
+                  type: "core::integer::u32",
+                },
+              ],
+              outputs: [
+                {
+                  type: "core::starknet::contract_address::ContractAddress",
+                },
+              ],
+              state_mutability: "view",
+            },
           ],
         },
         {
@@ -507,13 +699,41 @@ const deployedContracts = {
         },
         {
           type: "event",
+          name: "contracts::SealedBidFeedlot::SealedBidFeedlot::AuctionFinalized",
+          kind: "struct",
+          members: [
+            {
+              name: "lot_id",
+              type: "core::integer::u256",
+              kind: "key",
+            },
+            {
+              name: "winner",
+              type: "core::starknet::contract_address::ContractAddress",
+              kind: "data",
+            },
+            {
+              name: "winner_amount",
+              type: "core::integer::u256",
+              kind: "data",
+            },
+          ],
+        },
+        {
+          type: "event",
           name: "contracts::SealedBidFeedlot::SealedBidFeedlot::Event",
           kind: "enum",
-          variants: [],
+          variants: [
+            {
+              name: "AuctionFinalized",
+              type: "contracts::SealedBidFeedlot::SealedBidFeedlot::AuctionFinalized",
+              kind: "nested",
+            },
+          ],
         },
       ],
       classHash:
-        "0x2d66239dd1e281b8630ae044b4e4868d68403b55817ca9e1136b3241cb87397",
+        "0x6458608a473fe6c710be35a8bd28a63042025deeeac6a8db51b4a489376ede5",
     },
   },
 } as const;

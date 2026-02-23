@@ -1,361 +1,392 @@
-# 🏗 Scaffold-Stark
+# **🐂 Tokenized Circular Cattle – Project Documentation**
 
-<h4 align="center">
-  <a href="https://docs.scaffoldstark.com/">Documentation</a> |
-  <a href="https://scaffoldstark.com/">Website</a> |
-  <a href="https://scaffold-stark-demo.vercel.app/debug">Demo</a>
-</h4>
+## **Table of Contents**
 
-🧪 An open-source, up-to-date toolkit for building decentralized applications (dapps) on Starknet blockchain. It's designed to make it easier for developers to create and deploy smart contracts and build user interfaces that interact with those contracts.
+1. Overview  
+2. Key Features  
+3. Quick Start  
+   3.1 Prerequisites  
+   3.2 Native Installation (Linux/macOS/WSL)  
+   3.3 Docker \+ Dev Containers  
+4. Running the Project  
+   4.1 Start Local Devnet  
+   4.2 Deploy Smart Contract  
+   4.3 Launch Frontend  
+5. How It Works  
+   5.1 Auction Flow  
+   5.2 ZK Circuits  
+   5.3 Deployed Contracts  
+6. The Starknet Privacy Toolkit (Omar's Toolkit)  
+   6.1 Key Contributions  
+   6.2 Why Pre‑generated Calldata?  
+7. Project Structure  
+8. Testing  
+   8.1 Smart Contract Tests  
+   8.2 Frontend Tests  
+9. Deployment to Sepolia Testnet  
+10. Generating Calldata for New Lots  
+11. Documentation & Links  
+12. Contributing & License
 
-⚙️ Built using NextJS, Starknet.js, Scarb, Starknet-React, Starknet Foundry.
+---
 
-- ✅ **Contract Fast Reload**: Your frontend auto-adapts to your smart contracts as you deploy them.
-- 🪝 [**Custom hooks**](https://docs.scaffoldstark.com/hooks/): Collection of React hooks wrapper around [starknet-react](https://starknet-react.com/) to simplify interactions with smart contracts with typescript autocompletion.
-- 🧱 [**Components**](https://docs.scaffoldstark.com/components): Collection of common web3 components to quickly build your frontend.
-- 🔥 **Burner Wallet & Prefunded Account**: Quickly test your application with a burner wallet and prefunded accounts.
-- 🔐 **Integration with Wallet Providers**: Connect to different wallet providers and interact with Starknet network.
+## **1\. Overview**
 
-![Debug Contracts tab](./packages/nextjs/public/debug-image.png)
+Tokenized Circular Cattle is a decentralized application (dApp) built on Starknet that implements sealed‑bid auctions for cattle feedlots, enhanced with zero‑knowledge proofs for privacy and trust. It enables transparent and fair bidding while preserving bidder privacy until the auction ends.
 
-## 0. Requirements
+The project leverages the Scaffold‑Stark toolkit, Noir circuits, and Garaga verifiers to create a fully on‑chain, privacy‑preserving marketplace for cattle lots.
 
-Before you begin, you need to install the following tools:
+Core technologies:
 
-- [Node (>= v22)](https://nodejs.org/en/download/)
-- Yarn ([v1](https://classic.yarnpkg.com/en/docs/install/) or [v2+](https://yarnpkg.com/getting-started/install))
-- [Git](https://git-scm.com/downloads)
+* Next.js (frontend)  
+* Starknet.js & Starknet‑React (Starknet integration)  
+* Scarb (Cairo package manager)  
+* Starknet Foundry (testing & deployment)  
+* Noir (ZK circuits)  
+* Garaga (on‑chain verifiers)
 
-## 1. Install developer tools
+---
 
-You can install the developer tools natively or use Dev Containers.
+## **2\. Key Features**
 
-### Option 1: Natively install developer tools
+* Sealed‑bid auctions – Bidders commit to a bid by sending a Poseidon hash and later reveal it.  
+* ZK‑based auction finalization – The owner can finalize the auction using a zero‑knowledge proof that the declared winner is correct, without revealing all bids.  
+* ZK proof of payment – The winner can generate a proof of payment to claim the lot.  
+* Garaga on‑chain verifiers – Pre‑deployed Starknet verifiers for the UltraKeccakHonk proof system.  
+* Multi‑lot auctions – Create multiple lots with custom metadata (breed, weight, animals, etc.).  
+* Simulated payment flow – For demo purposes, a simulated payment bypasses real STRK transfer.  
+* Persistent bid storage – Bids are stored in the browser’s `localStorage` for easy demo replay.
 
-#### 1.1 Starkup
+---
 
-Tool for installing all the Starknet essentials for development. [Starkup](https://github.com/software-mansion/starkup) will install the latest stable versions of:
+## **3\. Quick Start**
 
-- [Scarb](https://docs.swmansion.com/scarb/) - Cairo package manager and build toolchain
-- [Starknet Foundry](https://foundry-rs.github.io/starknet-foundry/index.html) - Development toolchain for testing on Starknet
-- [asdf](https://asdf-vm.com/guide/getting-started.html) - Version manager to easily switch between tool versions
-- [Cairo 1.0 extension](https://marketplace.visualstudio.com/items?itemName=starkware.cairo1) for VSCode - Syntax highlighting and language support
-- [Starknet Devnet](https://0xspaceshard.github.io/starknet-devnet/) - Starknet Devnet
+### **3.1 Prerequisites**
 
-To install `starkup`, run the following command:
+* Node.js (\>= v22)  
+* Yarn (v1 or v2+)  
+* Git  
+* (Optional) Docker Desktop
 
-```sh
+---
+
+### **3.2 Native Installation (Linux / macOS / WSL)**
+
+#### **1\. Install Starkup (recommended)**
+
+Starkup installs all the Starknet development tools with a single command:
+
+```shell
 curl --proto '=https' --tlsv1.2 -sSf https://sh.starkup.sh | sh
 ```
 
-#### 1.2 Create your project
+This installs:
 
-Open a terminal and run the following command:
+* Scarb – Cairo package manager and build toolchain.  
+* Starknet Foundry – Testing and deployment toolchain.  
+* asdf – Version manager.  
+* Cairo 1 VS Code extension – Syntax highlighting and language support.  
+* Starknet Devnet – Local test network.
 
-```bash
-npx create-stark@latest
-cd my-dapp-example
-yarn install
-```
+If you already have these tools, verify the versions:
 
-Now you have a new project with the basic structure.
-
-#### 1.3 Troubleshooting
-
-- If you run into version errors after using `starkup` or `asdf`, you can try to install the dependencies manually. Check the details below.
-
-<details>
-
-#### Installing with ASDF
-
-Using ASDF, you can install the required dependencies of Scaffold Stark 2 in a single command. You can do so by doing
-
-```bash
-asdf install
-```
-
-You can refer to the guide of manual installation of asdf [here](https://asdf-vm.com/guide/getting-started.html).
-
-#### Scarb version
-
-To ensure the proper functioning of scaffold-stark, your `Scarb` version must match the version specified in [Compatible versions](#compatible-versions). To accomplish this, first check Scarb version:
-
-```sh
+```shell
 scarb --version
-```
-
-If your `Scarb` version is not the version specified in [Compatible versions](#compatible-versions), you need to install it. If you already have installed `Scarb` via `starkup`, you can setup this specific version with the following command:
-
-```sh
-asdf install scarb <version> && asdf set scarb <version>
-```
-
-Replace `<version>` with the exact version from [Compatible versions](#compatible-versions). Otherwise, you can install Scarb following the [instructions](https://docs.swmansion.com/scarb/download.html#install-via-asdf).
-
-#### Starknet Foundry version
-
-To ensure the proper functioning of the tests on scaffold-stark, your `Starknet Foundry` version must match the version specified in [Compatible versions](#compatible-versions). To accomplish this, first check your `Starknet Foundry` version:
-
-```sh
 snforge --version
-```
-
-If your `Starknet Foundry` version is not the version specified in [Compatible versions](#compatible-versions), you need to install it. If you already have installed `Starknet Foundry` via `starkup`, you can setup this specific version with the following command:
-
-```sh
-asdf install starknet-foundry <version> && asdf set starknet-foundry <version>
-```
-
-Replace `<version>` with the exact version from [Compatible versions](#compatible-versions). Otherwise, you can install Starknet Foundry following the [instructions](https://foundry-rs.github.io/starknet-foundry/getting-started/installation.html#installation-via-asdf).
-
-#### Starknet-devnet version
-
-To ensure the proper functioning of scaffold-stark, your `starknet-devnet` version must match the version specified in [Compatible versions](#compatible-versions). To accomplish this, first check your `starknet-devnet` version:
-
-```sh
 starknet-devnet --version
 ```
 
-If your `starknet-devnet` version is not the version specified in [Compatible versions](#compatible-versions), you need to install it.
+#### **2\. Clone the repository**
 
-- Install starknet-devnet via `asdf` ([instructions](https://github.com/gianalarcon/asdf-starknet-devnet/blob/main/README.md)). Use the exact version from [Compatible versions](#compatible-versions).
+```shell
+git clone https://github.com/your-org/tokenized-circular-cattle.git
+cd tokenized-circular-cattle
+```
 
-</details>
+#### **3\. Install JavaScript dependencies**
 
-### Option 2. Dev Containers
-
-#### 2.1 Install Docker Desktop
-
-As an alternative to installing the tools locally (Scarb, Starknet Foundry, Starknet Devnet), you can use Docker, this is the recommended option for `Windows` users. Here's what you need to do:
-
-1. Install [Docker Desktop](https://www.docker.com/get-started/)
-2. Install [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
-3. Create a new project folder.
-
-- `npx create-stark@latest`
-- `cd my-dapp-example`
-
-4. Check your project folder contains a `devcontainer.json` file. This file is used to set up the environment:
-
-- The configuration uses the `starknetfoundation/starknet-dev:<Scarb version>` image with the Scarb version specified in [Compatible versions](#compatible-versions).
-- This includes all required tools pre-installed, such as Scarb, Starknet Foundry, Starknet Devnet and other dependencies.
-
-#### 2.2 Getting Started with Docker Setup
-
-To start using the Docker-based setup:
-
-1. Open the project in **Visual Studio Code**.
-2. Select **"Reopen in Container"**.
-3. If you need to rebuild the container, open the Command Palette (**View -> Command Palette**) and choose:
-   - **Dev Containers: Rebuild and Reopen in Container**
-
-> Once inside the container, you can start working with all the tools and dependencies pre-configured.
-
-Now you are ready!!!
-
-## Compatible versions
-
-- Starknet-devnet - v0.7.2
-- Scarb - v2.15.1
-- Snforge - v0.55.0
-- Cairo - v2.15.0
-- Rpc - v0.10.x
-
-## Quickstart 1: Deploying a Smart Contract to Starknet-Devnet
-
-To get started with Scaffold-Stark, follow the steps below:
-
-1. Install the latest version of Scaffold-Stark
-
-```bash
-npx create-stark@latest
-cd my-dapp-example
+```shell
 yarn install
 ```
 
-2. Run a local network in the first terminal.
+#### **4\. Set up environment variables**
 
-```bash
+Copy the example files and fill in your own values (especially for Sepolia testnet).
+
+```shell
+cp packages/nextjs/.env.example packages/nextjs/.env
+cp packages/snfoundry/.env.example packages/snfoundry/.env
+```
+
+⚠️ Never commit your `.env` files – they are already in `.gitignore`.  
+---
+
+### **3.3 Docker \+ Dev Containers (recommended for Windows)**
+
+1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/).  
+2. Install the [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension for VS Code.  
+3. Open the project folder in VS Code and select Reopen in Container.  
+4. The container includes all tools pre‑configured (Scarb, Starknet Foundry, Starknet Devnet, etc.).
+
+---
+
+## **4\. Running the Project**
+
+### **4.1 Start Local Devnet**
+
+```shell
 yarn chain
 ```
 
-> To run a fork : `yarn chain --fork-network <URL> [--fork-block <BLOCK_NUMBER>]`
+Devnet will run at:
 
-This command starts a local Starknet network using Devnet. The network runs on your local machine and can be used for testing and development. You can customize the network configuration in `scaffold.config.ts` for your nextjs app.
+```
+http://127.0.0.1:5050
+```
 
-3. On a second terminal, deploy the sample contract:
+### **4.2 Deploy Smart Contract (to Devnet)**
 
-```bash
+In a second terminal:
+
+```shell
 yarn deploy
 ```
 
-This command deploys a sample smart contract to the local network. The contract is located in `packages/snfoundry/contracts/src` and can be modified to suit your needs. The `yarn deploy` command uses the deploy script located in `packages/snfoundry/scripts-ts/deploy.ts` to deploy the contract to the network. You can also customize the deploy script.
+The deployment script (`packages/snfoundry/scripts-ts/deploy.ts`) deploys the `SealedBidFeedlot` contract and outputs its address.
 
-By default `Scaffold-Stark` takes the first prefunded account from `starknet-devnet` as a deployer address,
+### **4.3 Launch Frontend**
 
-4. On a third terminal, start your NextJS app:
+In a third terminal:
 
-```bash
+```shell
 yarn start
 ```
 
-Visit your app on: `http://localhost:3000`. You can interact with your smart contract using the `Debug Contracts` page.
+Visit:
 
-5. Check your environment variables. We have a `yarn postinstall` script that will create `.env` files based on the `.env.example` files provided. If the environment variables don't exist, you can manually create a `.env` file from the `.env.example` to get the app running!
+```
+http://localhost:3000
+```
 
-> ⚠️ **IMPORTANT**: Never commit your private keys or sensitive environment variables to version control. The `.env` files are included in `.gitignore` by default, but always double-check before pushing your changes.
+You can now create lots, place bids, and interact with the auction.
 
-## Quickstart 2: Deploying a Smart Contract to Sepolia Testnet
+---
 
-<details>
+## **5\. How It Works**
 
-1. Make sure you already cloned this repo and installed dependencies.
+### **5.1 Auction Flow**
 
-2. Prepare your environment variables.
+1. Owner creates a lot – specifies producer, breed, weight, number of animals, metadata URI, and auction duration.  
+2. Bidders commit to a bid – they send a Poseidon hash of `(secret, amountLow, lotIdLow, bidder)`. The commitment is stored on‑chain and locally in `localStorage`.  
+3. Bidders reveal their bid – they provide the plaintext `amount` and `nonce`. The contract verifies that the hash matches the previously stored commitment.  
+4. Auction ends – after the duration expires, the owner can finalize the lot:  
+   * Simple finalize – `finalize_lot` (owner only) closes the lot.  
+   * ZK finalize – the owner sends a proof (from the selection circuit) to the Garaga verifier. If the proof is valid, the lot is finalized.  
+5. Winner actions – the highest bidder can:  
+   * Simulate a payment (demo mode)  
+   * Generate a ZK payment proof using the donation badge circuit to prove they paid the required amount.
 
-Find the `packages/snfoundry/.env` file and fill the env variables related to Sepolia testnet with your own wallet account contract address and private key. Find the `packages/nextjs/.env` file and fill the env variable related to Sepolia testnet rpc url.
+---
 
-3. Change your default network to Sepolia testnet.
+### **5.2 ZK Circuits**
 
-Find the `packages/nextjs/scaffold.config.ts` file and change the `targetNetworks` to `[chains.sepolia]`.
+| Circuit | Purpose | Noir Version | BB Version | Garaga System |
+| :---- | :---- | :---- | :---- | :---- |
+| donation\_badge | Prove payment and commitment correctness | 1.0.0‑beta.1 | 0.67.0 | ultra\_keccak\_honk |
+| selection | Prove winner is the highest bid and meets price | 1.0.0‑beta.1 | 0.67.0 | ultra\_keccak\_honk |
 
-![chall-0-scaffold-config](./packages/nextjs/public/scaffold-config.png)
+Both circuits compile with Noir 1.0.0‑beta.1 and proofs are generated using bb 0.67.0 (UltraHonk \+ Keccak for Starknet). The calldata for the Starknet verifiers is produced by Garaga.
 
-4. Get some testnet tokens.
+---
 
-You will need to get some `STRK` Sepolia tokens to deploy your contract to Sepolia testnet.
+### **5.3 Deployed Contracts**
 
-> Some popular faucets are [Starknet Faucet](https://starknet-faucet.vercel.app/) and [Blastapi Starknet Sepolia STRK](https://blastapi.io/faucets/starknet-sepolia-strk)
+The following contracts have been deployed on Sepolia testnet and are used by the application:
 
-4. Open a terminal, deploy the sample contract to Sepolia testnet:
+| Contract | Address | Description |
+| :---- | :---- | :---- |
+| SealedBidFeedlot | `0x61757931878b323c6656287f004c26f6b8894f8c10c669f048c0785563970d8` | Main auction contract |
+| Payment Verifier | `0x07b31788d2d06f1b80696f38ba7224f3595cc482dbd2f816165dbc7cdf476c14` | Verifier for donation\_badge circuit |
+| Selection Verifier | `0x05c76e04b1384953264c98d5dc1f5b69d44e2cb6086567fe7944c62b08b58080` | Verifier for selection circuit |
+| DonationBadge (ref) | `0x077ca6f2ee4624e51ed6ea6d5ca292889ca7437a0c887bf0d63f055f42ad7010` | Badge contract (from toolkit) |
+| Tongo Contract (ref) | `0x00b4cca30f0f641e01140c1c388f55641f1c3fe5515484e622b6cb91d8cee585` | Used for simulated payment |
 
-```bash
+*The last two are part of the Starknet Privacy Toolkit and are referenced for completeness.*
+
+---
+
+## **6\. The Starknet Privacy Toolkit (Omar's Toolkit)**
+
+The entire ZK workflow of this project is based on the [Starknet Privacy Toolkit](https://github.com/omarespejel/starknet-privacy-toolkit) by Omar Espejel. This toolkit provides an end‑to‑end reference implementation for:
+
+* Private transfers (Tongo) – used for the simulated payment flow.  
+* ZK proof generation with Noir \+ Garaga – exactly the stack used for both circuits.  
+* On‑chain verifiers – Garaga‑generated contracts deployed on Sepolia.
+
+### **6.1 Key Contributions**
+
+* Fixed version compatibility: It prescribes Noir 1.0.0‑beta.1, bb 0.67.0, and Garaga 0.15.5 – the same combination that finally worked for generating calldata.  
+* Codespaces as the recommended environment: Because the toolchain is sensitive to OS versions, the toolkit advises using GitHub Codespaces (or a Linux container) to avoid GLIBC and other compatibility issues – a lesson we learned firsthand.  
+* Donation badge example: The `donation_badge` circuit and its verifier contract served as the blueprint for the payment proof part of our project.  
+* Deployment addresses: The toolkit lists the contracts we reused or took as reference (see §5.3).
+
+### **6.2 Why Pre‑generated Calldata?**
+
+Despite the toolkit’s guidance, generating proofs dynamically in the browser proved unreliable for the selection circuit (errors like `RuntimeError: unreachable`). The toolkit itself includes a proof API (`bun run api`) that can generate proofs server‑side, but for demo stability we opted for the simplest approach: pre‑generate calldata using the exact same tools and versions, then serve the static files from `public/`. This guarantees that the on‑chain verification works every time without depending on client‑side computation.
+
+The process described in Generating Calldata for New Lots follows exactly the steps recommended by the toolkit, adapted to our auction circuit.
+
+---
+
+## **7\. Project Structure**
+
+```
+packages/
+├── nextjs/                 # Next.js frontend
+│   ├── app/                # App router pages
+│   ├── components/         # React components
+│   ├── hooks/              # Custom Starknet hooks
+│   ├── public/             # Static assets (calldata_*.txt, images)
+│   └── services/           # Garaga service (optional)
+│
+├── snfoundry/              # Smart contract development
+│   ├── contracts/          # Cairo contracts (src/)
+│   ├── scripts-ts/         # Deployment scripts
+│   └── tests/              # Starknet Foundry tests
+│
+└── circuits/               # Noir circuits (for local calldata generation)
+    ├── donation_badge/     # Payment circuit (from toolkit)
+    └── selection/          # Auction selection circuit (adapted)
+```
+
+---
+
+## **8\. Testing**
+
+### **8.1 Smart Contract Tests (Starknet Foundry)**
+
+```shell
+yarn test
+```
+
+### **8.2 Frontend Tests (Next.js)**
+
+```shell
+yarn test:nextjs
+```
+
+For coverage:
+
+```shell
+yarn test:nextjs run --coverage
+```
+
+---
+
+## **9\. Deployment to Sepolia Testnet**
+
+1. Fund your deployer account with Sepolia STRK (use a faucet like [Starknet Faucet](https://starknet-faucet.vercel.app/) or [Blastapi](https://blastapi.io/faucets/starknet-sepolia-strk)).  
+2. Fill environment variables in `packages/snfoundry/.env`:
+
+```
+DEPLOYER_ADDRESS=0xYourAccountAddress
+DEPLOYER_PRIVATE_KEY=0xYourPrivateKey
+```
+
+3. Configure the target network in `packages/nextjs/scaffold.config.ts`:
+
+```ts
+import { chains } from "@starknet-react/chains";
+export const targetNetworks = [chains.sepolia];
+```
+
+4. Deploy the contract:
+
+```shell
 yarn deploy --network sepolia
 ```
 
-5. On a second terminal, start your NextJS app:
+5. Start the frontend and interact with the live testnet.
 
-```bash
-yarn start
+---
+
+## **10\. Generating Calldata for New Lots**
+
+After bids are revealed, obtain the bid data from the browser’s `localStorage` (key `bids_<ID>`). Each bid includes:
+
+* `nonce` (secret)  
+* `amount`  
+* `bidder`  
+* `lot_id`
+
+Edit the file:
+
+```
+circuits/selection/selection/Prover.toml
 ```
 
-Visit your app on: `http://localhost:3000`. You can interact with your smart contract using the `Debug Contracts` page.
+The circuit expects exactly 8 bids. Fill unused slots with zeros and set `valid_bids` accordingly.
 
-</details>
+Example for a single bid:
 
-## Setup RPC specific version
+```
+bids = [
+  { amount = 500, nonce = 12345, bidder = "0x...", lot_id = 18 },
+  { amount = 0, nonce = 0, bidder = "0x0", lot_id = 0 },
+  { amount = 0, nonce = 0, bidder = "0x0", lot_id = 0 },
+  { amount = 0, nonce = 0, bidder = "0x0", lot_id = 0 },
+  { amount = 0, nonce = 0, bidder = "0x0", lot_id = 0 },
+  { amount = 0, nonce = 0, bidder = "0x0", lot_id = 0 },
+  { amount = 0, nonce = 0, bidder = "0x0", lot_id = 0 },
+  { amount = 0, nonce = 0, bidder = "0x0", lot_id = 0 }
+]
 
-<details>
-
-To ensure the proper functioning of the scaffold-stark with Testnet or Mainnet, your RPC version must match the version specified in [Compatible versions](#compatible-versions). This repository contains `.env.example` files with the default RPC URLs. Check the RPC URLs in `packages/nextjs/.env.example` and `packages/snfoundry/.env.example` for the current endpoints. Let's verify this RPC version by calling a `POST` request in an API platform like `Postman` or `Insommia`. Use the RPC URL from the `.env.example` files and the body should be:
-
-```json
-{
-  "jsonrpc": "2.0",
-  "method": "starknet_specVersion",
-  "id": 1
-}
+valid_bids = [true, false, false, false, false, false, false, false]
+lot_id = 18
 ```
 
-You have to paste the endpoint and body in the API platform and click on the `Send` button. If the response matches the RPC version in [Compatible versions](#compatible-versions), then you are good to go. Otherwise, you have to get the correct RPC URL endpoint from the `.env.example` files.
+Run the following commands:
 
-![rpc-version](./packages/nextjs/public/rpc-version.png)
+```shell
+cd circuits/selection/selection
 
-</details>
+nargo compile
+nargo execute witness
 
-## Network Configuration Centralization
+bb prove_ultra_keccak_honk -b ./target/selection.json -w ./target/witness.gz -o ./target/proof
+bb write_vk_ultra_keccak_honk -b ./target/selection.json -o ./target/vk
+bb proof_as_fields_honk -k ./target/vk -p ./target/proof -o ./target/public_inputs
 
-<details>
+source ../garaga-venv/bin/activate
 
-By default, majority of the Network settings are centralized in `scaffold.config.ts`, the exception being the RPC urls which are configured from your environment variables. In the absence of the proper settings, the framework will choose a random provider for you.
-In the env file also, the lines configuring the networks (devnet, sepolia or mainnet) need to be uncommented, depending on what
-network you want activated for you.
-
-**How to Change Networks:**
-
-- Update the `targetNetworks` array in `scaffold.config.ts` (first network is the primary target)
-
-### Required Environment Variables
-
-Set these in your `.env` file:
-
-- `NEXT_PUBLIC_DEVNET_PROVIDER_URL`
-- `NEXT_PUBLIC_SEPOLIA_PROVIDER_URL`
-- `NEXT_PUBLIC_MAINNET_PROVIDER_URL`
-
-Configuration uses these variables with fallbacks:
-
-```typescript
-"devnet": process.env.NEXT_PUBLIC_DEVNET_PROVIDER_URL || "defaultRpcValue",
-"sepolia": process.env.NEXT_PUBLIC_SEPOLIA_PROVIDER_URL || "defaultRpcValue",
-"mainnet": process.env.NEXT_PUBLIC_MAINNET_PROVIDER_URL || "defaultRpcValue"
+garaga calldata --system ultra_keccak_honk --vk ./target/vk --proof ./target/proof --public-inputs ./target/public_inputs --format starkli > ./target/calldata_lote<ID>.txt
 ```
 
-</details>
+Place the generated file in:
 
-## CLI Usage
-
-<details>
-Depending on your package manager, substitute the word `COMMAND` with the appropiate one from the list.
-
-```bash
-yarn COMMAND
-npm run COMMAND
+```
+packages/nextjs/public/
 ```
 
-This repo prefer yarn as package manager.
+---
 
-Commands:
+## **11\. Documentation & Links**
 
-| Command          | Description                                                                               |
-| ---------------- | ----------------------------------------------------------------------------------------- |
-| format:check     | (Read only) Batch checks for format inconsistencies for the nextjs and snfoundry codebase |
-| next:check-types | Compile typscript project                                                                 |
-| next:lint        | Runs next lint                                                                            |
-| prepare          | Install husky's git hooks                                                                 |
-| usage            | Show this text                                                                            |
+* [Scaffold‑Stark Documentation](https://docs.scaffoldstark.com/)  
+* [Starknet.js](https://www.starknetjs.com/)  
+* [Starknet‑React](https://starknet-react.com/)  
+* [Noir Lang](https://noir-lang.org/)  
+* [Garaga](https://github.com/keep-starknet-strange/garaga)  
+* [Starknet Privacy Toolkit (Omar's repo)](https://github.com/omarespejel/starknet-privacy-toolkit)
 
-### CLI Smart Contracts
+---
 
-| Command         | Description                                                                         |
-| --------------- | ----------------------------------------------------------------------------------- |
-| compile         | Compiles contracts.                                                                 |
-| test            | Runs snfoundry tests                                                                |
-| chain           | Starts the local blockchain network.                                                |
-| deploy          | Deploys contract to the configured network discarding previous deployments.         |
-| deploy:no-reset | Deploys contract to the configured network without discarding previous deployments. |
-| verify          | Verify Smart Contracts with Walnut                                                  |
+## **12\. Contributing & License**
 
-### CLI Frontend
+Contributions are welcome. Please read [`CONTRIBUTING.md`](https://./CONTRIBUTING.md) for guidelines.
 
-| Command     | Description                                  |
-| ----------- | -------------------------------------------- |
-| start       | Starts the frontend server                   |
-| test:nextjs | Runs the nextjs tests                        |
-| vercel      | Deploys app to vercel                        |
-| vercel:yolo | Force deploy app to vercel (ignoring errors) |
+License – This project is licensed under the MIT License – see the [`LICENSE`](https://./LICENSE) file for details.
 
-## **What's next**
+---
 
-- Edit your smart contract `your_contract.cairo` in `packages/snfoundry/contracts/src`
-- Edit your frontend homepage at `packages/nextjs/app/page.tsx`. For guidance on [routing](https://nextjs.org/docs/app/building-your-application/routing/defining-routes) and configuring [pages/layouts](https://nextjs.org/docs/app/building-your-application/routing/pages-and-layouts) checkout the Next.js documentation.
-- Edit your deployment scripts in `packages/snfoundry/script-ts/deploy.ts`
-- Edit your smart contract tests in `packages/snfoundry/contracts/src/test`. To run tests use `yarn test`
-- You can write unit tests for your Next.js app! Run them with one the following scripts below.
-  - `yarn test:nextjs` to run regular tests with watch mode
-  - `yarn test:nextjs run` to run regular tests without watch mode
-  - `yarn test:nextjs run --coverage` to run regular tests without watch mode with coverage
-
-</details>
-
-## Documentation
-
-Visit our [docs](https://docs.scaffoldstark.com/) to learn how to start building with Scaffold-Stark.
-
-To know more about its features, check out our [website](https://scaffoldstark.com)
-
-## Contributing to Scaffold-Stark
-
-We welcome contributions to Scaffold-Stark!
-
-Please see [CONTRIBUTING.MD](https://github.com/Scaffold-Stark/scaffold-stark-2/blob/main/CONTRIBUTING.md) for more information and guidelines for contributing to Scaffold-Stark.
+`Made with ❤️ by the Tokenized Cattle Team`
