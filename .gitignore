@@ -2,7 +2,7 @@
 node_modules
 package-lock.json
 .idea
-
+garaga-venv/
 # yarn / eslint
 .yarn/*
 !.yarn/patches

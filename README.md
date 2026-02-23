@@ -99,8 +99,8 @@ starknet-devnet --version
 #### **2\. Clone the repository**
 
 ```shell
-git clone https://github.com/your-org/tokenized-circular-cattle.git
-cd tokenized-circular-cattle
+git clone https://github.com/vices1967-beep/GTC.git
+cd GTC
 ```
 
 #### **3\. Install JavaScript dependencies**
