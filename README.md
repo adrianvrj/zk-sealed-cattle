@@ -99,8 +99,8 @@ starknet-devnet --version
 #### **2\. Clone the repository**
 
 ```shell
-git clone https://github.com/vices1967-beep/GTC.git
-cd GTC
+git clone https://github.com/vices1967-beep/zk-sealed-cattle.git
+cd zk-sealed-cattle
 ```
 
 #### **3\. Install JavaScript dependencies**
