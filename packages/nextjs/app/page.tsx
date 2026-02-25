@@ -452,7 +452,7 @@ export default function Home() {
     }
     setIsLoading(true);
     try {
-      // Normalizar dirección actual
+      // Obtener datos del commit desde localStorage
       const winnerAddrFormatted = toHexAddress(activeAccountAddress).toLowerCase();
       const key = `zk_${selectedLotId}_${winnerAddrFormatted}`;
       const storedData = localStorage.getItem(key);
@@ -466,7 +466,7 @@ export default function Home() {
       const nonceToUse = bid.secret;       // string
       const storedWinner = bid.winner.toLowerCase();
 
-      // Verificar que la dirección del commit coincida
+      // Verificar dirección
       if (storedWinner !== winnerAddrFormatted) {
         console.error("Winner address mismatch", { storedWinner, winnerAddrFormatted });
         toast.error("Winner address mismatch");
@@ -474,7 +474,7 @@ export default function Home() {
         return;
       }
 
-      // Calcular commitment local para verificar consistencia
+      // Recalcular commitment para verificar consistencia local
       const secretBig = BigInt(nonceToUse);
       const amountBig = BigInt(amountToUse);
       const lotIdBig = BigInt(selectedLotId);
@@ -487,30 +487,62 @@ export default function Home() {
         return;
       }
 
-      console.log("Reveal usando datos de localStorage:", { amountToUse, nonceToUse, winnerAddrFormatted });
-      console.log("Parámetros reveal:", { lot_id: selectedLotId, amount: amountToUse, nonce: nonceToUse });
+      console.log("Reveal data:", { amountToUse, nonceToUse, winnerAddrFormatted });
 
-      // Construcción manual del calldata para evitar problemas de serialización con Cavos
+      // Opción 1: usar populate (como funciona con Braavos)
+      const call1 = contract.populate("reveal_bid", [selectedLotId, BigInt(amountToUse), nonceToUse]);
+      console.log("Call with populate:", call1);
+
+      // Opción 2: construcción manual (la que estabas usando)
       const { low: amountLow, high: amountHigh } = splitU256(BigInt(amountToUse));
       const { low: lotLow, high: lotHigh } = splitU256(BigInt(selectedLotId));
-      const calldata = [
+      const calldataManual = [
         lotLow.toString(),
         lotHigh.toString(),
         amountLow.toString(),
         amountHigh.toString(),
         nonceToUse
       ];
-
-      const call = {
+      const call2 = {
         contractAddress: contract.address,
         entrypoint: 'reveal_bid',
-        calldata,
+        calldata: calldataManual,
       };
+      console.log("Call manual:", call2);
 
-      console.log("Call manual:", call);
+      // Opción 3: con nonce en hex
+      const nonceHex = '0x' + BigInt(nonceToUse).toString(16);
+      const calldataHex = [
+        lotLow.toString(),
+        lotHigh.toString(),
+        amountLow.toString(),
+        amountHigh.toString(),
+        nonceHex
+      ];
+      const call3 = {
+        contractAddress: contract.address,
+        entrypoint: 'reveal_bid',
+        calldata: calldataHex,
+      };
+      console.log("Call con nonce hex:", call3);
 
-      const tx = await executeTransaction(call);
-      await provider.waitForTransaction(tx.transaction_hash);
+      // Elegir una opción (puedes cambiar entre call1, call2, call3)
+      const selectedCall = call3; // Cambia a call2 o call3 para probar
+
+      let txHash: string;
+      if (isCavosAuth) {
+        // Usar Cavos directamente (sin executeTransaction wrapper)
+        txHash = await cavosExecute(selectedCall);
+        console.log("Cavos txHash:", txHash);
+      } else if (walletAccount) {
+        const tx = await walletAccount.execute([selectedCall]);
+        txHash = tx.transaction_hash;
+      } else {
+        throw new Error("No account connected");
+      }
+
+      await provider.waitForTransaction(txHash);
+      toast.success("✅ Bid revealed");
 
       // Actualizar información del lote
       const updatedInfo = await contract.get_lot_info(selectedLotId);
@@ -533,7 +565,6 @@ export default function Home() {
 
       setParticipatedLotes((prev) => ({ ...prev, [selectedLotId]: true }));
       setRevealed(true);
-      toast.success("✅ Bid revealed");
     } catch (e: any) {
       console.error("Error in reveal:", e);
       toast.error("❌ Reveal failed: " + (e.message || JSON.stringify(e)));

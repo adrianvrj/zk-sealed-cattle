@@ -4797,7 +4797,6 @@ __metadata:
     eslint: ^8
     eslint-config-next: 15.2.3
     ethers: ^6.12.0
-    garaga: ^1.0.1
     get-starknet-core: ^4.0.0
     jsdom: ^26.0.0
     minimatch: ^10.0.0
@@ -9915,13 +9914,6 @@ __metadata:
   version: 1.2.3
   resolution: "functions-have-names@npm:1.2.3"
   checksum: c3f1f5ba20f4e962efb71344ce0a40722163e85bee2101ce25f88214e78182d2d2476aa85ef37950c579eb6cf6ee811c17b3101bb84004bb75655f3e33f3fdb5
-  languageName: node
-  linkType: hard
-
-"garaga@npm:^1.0.1":
-  version: 1.0.1
-  resolution: "garaga@npm:1.0.1"
-  checksum: 6c058c7086d4af330e2084a65c20fe144408c50094f4a6a590ed59cf4bc9835299996de6cc416158e492d1cd99547273debd93cac7a87427b158189eea74fab8
   languageName: node
   linkType: hard
 

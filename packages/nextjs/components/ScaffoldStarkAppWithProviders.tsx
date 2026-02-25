@@ -64,8 +64,8 @@ export const ScaffoldStarkAppWithProviders = ({
     session: {
       defaultPolicy: {
         allowedContracts: [
-          '0x61757931878b323c6656287f004c26f6b8894f8c10c669f048c0785563970d8',
-          '0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7',
+          '0x74694c150c1b9ff90573c6d856d29cbd1ab3d55252abd4ef4c9827c28482743', // Nuevo contrato de subasta
+          '0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7', // STRK token
         ],
         spendingLimits: [
           {
